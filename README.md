@@ -1,4 +1,4 @@
-# Fashion-Engineering
+# IS3107 Project
 
 ## Setting up
 
