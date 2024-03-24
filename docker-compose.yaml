@@ -84,6 +84,13 @@ x-airflow-common:
       condition: service_healthy
 
 services:
+  selenium:
+    container_name: remote_chromedriver
+    image: seleniarm/standalone-chromium:latest
+    ports:
+      - 4444:4444
+    restart: always
+
   postgres:
     image: postgres:13
     environment:
@@ -127,6 +134,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    env_file:
+    - ./.env
 
   airflow-scheduler:
     <<: *airflow-common
@@ -142,6 +151,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    env_file:
+    - ./.env
 
   airflow-worker:
     <<: *airflow-common
@@ -165,6 +176,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    env_file:
+      - ./.env
 
   airflow-triggerer:
     <<: *airflow-common
@@ -180,6 +193,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+    env_file:
+    - ./.env
 
   airflow-init:
     <<: *airflow-common
