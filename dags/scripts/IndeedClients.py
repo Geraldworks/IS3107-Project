@@ -86,8 +86,10 @@ class IndeedJobClient(IndeedClient):
                 curr_url = self.generate_job_listing_url(job, page_number)
 
                 time.sleep(5)
-            except Exception as e:
-                print(e)
+            except NoSuchElementException:
+                print(f"page {page_number} for {job} does not exist")
+            except:
+                pass
 
         print(f"scraping for {job} is completed")
         return all_scraped_information
@@ -277,10 +279,14 @@ class IndeedCompanyClient(IndeedClient):
             self._get_histogram_rating(histogram_block, output)
             self._get_ratings_by_category(category_ratings_block, output)
 
-        except Exception as e:
-            print(e)
+        except NoSuchElementException:
+            print(f"{company_shorthand} stats does not exist")
+        except Exception:
+            pass
 
     def scrape_companies_stats(self, company_urls: list[dict]):
+        print(f"{len(company_urls)} total companies to scrape stats")
+        
         for i in range(0, len(company_urls), 20):
             self.create_driver()
             for company_dict in company_urls[i : i + 20]:
