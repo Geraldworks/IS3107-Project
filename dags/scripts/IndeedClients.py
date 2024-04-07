@@ -22,15 +22,14 @@ class IndeedClient:
         chrome_options.add_argument(
             "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
-        chrome_options.add_argument("--disable-dev-shm-usage")
 
         if self.internal_port:
             self.driver = webdriver.Remote(
-                f"{self.internal_port}:4444/wd/hub",
-                options=chrome_options,
+                f"{self.internal_port}:4444/wd/hub", options=chrome_options
             )
         else:
             self.driver = webdriver.Chrome(options=chrome_options)
+
         self.driver.implicitly_wait(5)
         self.wait = WebDriverWait(self.driver, 5)
 
@@ -38,10 +37,7 @@ class IndeedClient:
         return self.output
 
     def close(self):
-        if self.internal_port:
-            self.driver.quit()
-        else:
-            self.driver.close()
+        self.driver.quit()
 
 
 class IndeedJobClient(IndeedClient):
@@ -172,17 +168,19 @@ class IndeedJobClient(IndeedClient):
         return output
 
     def scrape_job_listings(self, lst_of_jobs: list[str]):
-
+        self.create_driver()
+        self.perform_initial_job_cleanups()
         for job in lst_of_jobs:
-            self.create_driver()
-            self.perform_initial_job_cleanups()
-            self.perform_initial_job_cleanups()
             self.output.extend(self._scrape_all_pages(job))
-            time.sleep(5)
+            time.sleep(20)
+        self.close()
 
-            self.close()
+        time_scraped = datetime.now(timezone.utc)
+        expiration_time = time_scraped + timedelta(days=30)
 
-        return self.add_expiration_date()
+        self.add_expiration_date(time_scraped, expiration_time)
+
+        return time_scraped
 
     def perform_initial_job_cleanups(self):
         self.driver.get(self.generate_job_listing_url("software engineer", 0))
@@ -197,13 +195,10 @@ class IndeedJobClient(IndeedClient):
         base_url = f'https://sg.indeed.com/jobs?q={"+".join(job.split())}&l=Singapore&radius=10&fromage=1&start={page_number * 10}'
         return base_url
 
-    def add_expiration_date(self):
-        time_scraped = datetime.now(timezone.utc)
-        expiration_time = time_scraped + timedelta(days=30)
+    def add_expiration_date(self, time_scraped, expiration_time):
         for dic in self.output:
             dic["dateCreated"] = time_scraped
             dic["expiration_date"] = expiration_time
-        return time_scraped
 
 
 class IndeedCompanyClient(IndeedClient):
@@ -218,7 +213,9 @@ class IndeedCompanyClient(IndeedClient):
         except:
             return False
 
-    def _get_ratings_by_category(self, categories_block, company_info_output):
+    def _get_ratings_by_category(self, categories_block) -> dict:
+        """scrapes the company categorical ratings and outputs a dictionary of the ratings"""
+        categorical_ratings = {}
         categorical_elements = categories_block.find_elements(By.XPATH, "./child::div")
         for item in categorical_elements:
             list_of_items = item.text.split("\n")
@@ -226,20 +223,27 @@ class IndeedCompanyClient(IndeedClient):
             rating = list_of_items[0]
             category = list_of_items[1].replace(" ", "").replace("/", "")
 
-            company_info_output[f"company{category}Rating"] = (
+            categorical_ratings[f"company{category}Rating"] = (
                 None if not self._is_float(rating) else float(rating)
             )
 
-    def _get_overall_rating(self, overall_rating_block, company_info_output):
+        return categorical_ratings
+
+    def _get_overall_rating(self, overall_rating_block) -> dict:
+        """scrapes the company overall ratings and outputs a dictionary of the ratings"""
+        overall_ratings = {}
+
         rating, review_total_string = overall_rating_block.text.split("\n")
         counts_string = review_total_string.split("Based on ")[1].split(" ")[0]
 
-        company_info_output["companyOverallRating"] = float(rating)
-        company_info_output["companyReviewCounts"] = int(
-            "".join(counts_string.split(","))
-        )
+        overall_ratings["companyOverallRating"] = float(rating)
+        overall_ratings["companyReviewCounts"] = int("".join(counts_string.split(",")))
 
-    def _get_histogram_rating(self, histogram_block, company_info_output):
+        return overall_ratings
+
+    def _get_histogram_rating(self, histogram_block) -> dict:
+        """scrapes the company histogram ratings and outputs a dictionary of the ratings"""
+        histogram_ratings = {}
         histogram_elements = histogram_block.find_element(
             By.TAG_NAME, "div"
         ).find_elements(By.XPATH, "./child::div")
@@ -251,21 +255,22 @@ class IndeedCompanyClient(IndeedClient):
             else:
                 rating_counts = int(rating_counts)
 
-            company_info_output[f"companyTotal{rating_value}Star"] = rating_counts
+            histogram_ratings[f"companyTotal{rating_value}Star"] = rating_counts
 
-    def _get_company_name(self, company_info_output, company_shorthand):
+        return histogram_ratings
+
+    def _get_company_name(self, company_shorthand):
         try:
             company_name = self.driver.find_element(
                 By.CSS_SELECTOR, ".css-19rjr9w.e1wnkr790"
             ).text
-            company_info_output["companyName"] = company_name
+            return company_name
         except:
-            company_info_output["companyName"] = company_shorthand
+            return company_shorthand
 
-    def _scrape_company_stats(self, company_url, company_shorthand, output):
+    def _scrape_company_stats(self, company_url, company_shorthand):
         self.driver.get(company_url)
-        time.sleep(1)
-        self._get_company_name(output, company_shorthand)
+        company_name = self._get_company_name(company_shorthand)
 
         try:
             rating_block = self.driver.find_element(
@@ -275,38 +280,58 @@ class IndeedCompanyClient(IndeedClient):
                 rating_block.find_elements(By.XPATH, "./child::div")
             )
 
-            self._get_overall_rating(overall_rating_block, output)
-            self._get_histogram_rating(histogram_block, output)
-            self._get_ratings_by_category(category_ratings_block, output)
+            overall_ratings = self._get_overall_rating(overall_rating_block)
+            histogram_ratings = self._get_histogram_rating(histogram_block)
+            categorical_ratings = self._get_ratings_by_category(category_ratings_block)
+
+            return [
+                overall_ratings,
+                histogram_ratings,
+                categorical_ratings,
+                {"companyName": company_name},
+            ]
 
         except NoSuchElementException:
             print(f"{company_shorthand} stats does not exist")
         except Exception:
             pass
 
-    def scrape_companies_stats(self, company_urls: list[dict]):
-        print(f"{len(company_urls)} total companies to scrape stats")
-        
-        for i in range(0, len(company_urls), 20):
-            self.create_driver()
-            for company_dict in company_urls[i : i + 20]:
+    def scrape_companies_stats(self, company_urls_dics: list[dict]):
+        print(f"{len(company_urls_dics)} total companies to scrape stats")
+        step = 10
 
+        self.create_driver()
+
+        for i in range(0, len(company_urls_dics), step):
+            for company_dict in company_urls_dics[i : i + step]:
                 review_url = company_dict.get("companyReviewUrl")
                 company_url = company_dict.get("companyUrl")
                 company_shorthand = company_dict.get("companyShorthand")
 
-                print(f"scraping stats for {company_shorthand}")
-
                 if self._is_correct_url(review_url):
-                    company_info = {}
-                    company_info["companyShorthand"] = company_shorthand
-                    company_info["companyUrl"] = company_url
-                    company_info["companyReviewUrl"] = review_url
+                    print(f"scraping stats for {company_shorthand}")
 
-                    self._scrape_company_stats(
-                        review_url, company_shorthand, company_info
+                    company_stats = {}
+                    company_stats["companyShorthand"] = company_shorthand
+                    company_stats["companyUrl"] = company_url
+                    company_stats["companyReviewUrl"] = review_url
+
+                    company_information = self._scrape_company_stats(
+                        review_url, company_shorthand
                     )
-                    self.output.append(company_info)
-                    time.sleep(2)
 
-            self.close()
+                    if company_information:
+                        for d in company_information:
+                            for label, stats in d.items():
+                                company_stats[label] = stats
+
+                    self.output.append(company_stats)
+                    print(f"scraping stats for {company_shorthand} is completed")
+
+                else:
+                    print(f"scraping stats for {company_shorthand} is invalid")
+
+                time.sleep(2)
+            time.sleep(10)
+        print("all company scrapes completed")
+        self.close()
