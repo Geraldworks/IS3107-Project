@@ -92,7 +92,10 @@ def indeed_pipeline():
         )
 
         ## Return whatever you need returned
+        return date_scraped
 
+
+    ## Define the Pipeline here
     time_scraped = scrape_indeed_jobs(["data science", "software engineer"])
     scrape_company_stats(time_scraped=time_scraped)
 

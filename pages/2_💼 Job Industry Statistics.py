@@ -16,15 +16,19 @@ cluster_name = st.secrets.cluster_name
 
 uri = f"mongodb+srv://{username}:{password}@{cluster_name}.xtz5a2z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 
+
 def init_connection():
-  return MongoClient(uri,tlsCAFile=ca)
+    return MongoClient(uri, tlsCAFile=ca)
+
 
 client = init_connection()
 
+
 def get_jobs_data():
-  db = client.indeed #establish connection to the 'sample_guide' db
-  items = db.jobDescriptions.find() 
-  return pd.DataFrame(list(items))
+    db = client.indeed  # establish connection to the 'sample_guide' db
+    items = db.jobDescriptions.find()
+    return pd.DataFrame(list(items))
+
 
 data = get_jobs_data()
 data["jobTitle"] = data["jobTitle"].str.lower()
@@ -37,8 +41,20 @@ business_analyst_counts = len(data[data["jobTitle"].str.contains("business analy
 
 
 # Labels and counts
-labels = ['Data Analyst', 'Data Engineer', 'Software Engineer', 'Data Scientist', 'Business Analyst']
-sizes = [data_analyst_counts, data_engineer_counts, swe_counts, data_scientist_counts, business_analyst_counts]
+labels = [
+    "Data Analyst",
+    "Data Engineer",
+    "Software Engineer",
+    "Data Scientist",
+    "Business Analyst",
+]
+sizes = [
+    data_analyst_counts,
+    data_engineer_counts,
+    swe_counts,
+    data_scientist_counts,
+    business_analyst_counts,
+]
 
 # Filter out categories with zero counts
 filtered_labels = []
@@ -50,6 +66,12 @@ for label, size in zip(labels, sizes):
 
 # Plotting the pie chart
 fig, ax = plt.subplots()
-ax.pie(filtered_sizes, labels=filtered_labels, autopct='%1.1f%%', startangle=140, colors=plt.cm.Paired.colors)
-ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+ax.pie(
+    filtered_sizes,
+    labels=filtered_labels,
+    autopct="%1.1f%%",
+    startangle=140,
+    colors=plt.cm.Paired.colors,
+)
+ax.axis("equal")  # Equal aspect ratio ensures that pie is drawn as a circle.
 st.pyplot(fig)
