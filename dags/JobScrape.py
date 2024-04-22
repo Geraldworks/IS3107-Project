@@ -1,8 +1,8 @@
 import os
 import logging
+import time
 from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
-from typing import Any
 from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from scripts.IndeedClients import IndeedJobClient, IndeedCompanyClient
@@ -35,14 +35,14 @@ default_args = {
 
 
 @dag(
-    dag_id="is3107",
+    dag_id="IS3107-Project",
     default_args=default_args,
     schedule=None,
     catchup=False,
-    tags=["is3107-pipeline"],
+    tags=["IS3107-Project-Pipeline"],
 )
 def indeed_pipeline():
-    @task(task_id="scrape_job_desc")
+    @task(task_id="scrape_job_descriptions")
     def scrape_indeed_jobs(list_of_jobs: list[str]):
         indeed_job_client = IndeedJobClient("remote_chromedriver")
         time_scraped = indeed_job_client.scrape_job_listings(list_of_jobs)
@@ -56,9 +56,8 @@ def indeed_pipeline():
 
         return time_scraped
 
-    @task(task_id="scrape_company_stats")
-    def scrape_company_stats(**kwargs):
-        date_scraped = kwargs.get("time_scraped")
+    @task(task_id="scrape_company_statistics")
+    def scrape_company_stats(date_scraped):
 
         pipeline = [
             {"$match": {"dateCreated": date_scraped}},
@@ -94,10 +93,43 @@ def indeed_pipeline():
         ## Return whatever you need returned
         return date_scraped
 
+    # TODO TEXT SUMMARIZATION - MINGSHAN
+    @task(task_id="summarise_job_descriptions")
+    def summarise_job_desc(date_scraped):
+        ### Implement the function logic here with the date_scraped argument
+        pass
 
-    ## Define the Pipeline here
-    time_scraped = scrape_indeed_jobs(["data science", "software engineer"])
-    scrape_company_stats(time_scraped=time_scraped)
+    # TODO TOP SIMILAR JOBS - MINGSHAN
+    @task(task_id="identify_top_similar_jobs")
+    def create_top_similar_jobs(argument_from_summarise_job_desc_func):
+        ### Implement the function logic here with the intended argument (if required)
+        pass
+
+    # TODO SKILLSETS SUMMARIZATION - RYU
+    @task(task_id="summarise_hard_skills")
+    def summarise_hard_skills(date_scraped):
+        ### Implement the function logic here with the date_scraped argument
+        pass
+
+    @task(task_id="complete_dag")
+    def close_dag(*args, **kwargs):
+        pass
+
+    # data ingestion from indeed
+    time_scraped = scrape_indeed_jobs(
+        ["data science", "software engineer", "data analytics"]
+    )
+    time_scraped = scrape_company_stats(time_scraped)
+
+    # TODO MINGSHAN
+    summarise_job_output = summarise_job_desc(time_scraped)
+    top_similar_output = create_top_similar_jobs(summarise_job_output)
+
+    # TODO RYU
+    summarise_skills_output = summarise_hard_skills(time_scraped)
+
+    # closing off the dag
+    close_dag(top_similar_output, summarise_skills_output)
 
 
 indeed_etl = indeed_pipeline()

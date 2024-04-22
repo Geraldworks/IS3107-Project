@@ -18,10 +18,15 @@ class IndeedClient:
     def create_driver(self):
         chrome_options = Options()
         chrome_options.add_argument("--headless=new")
-        chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument(
             "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-setuid-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--start-maximized")
+        chrome_options.add_argument("--window-size=1920,1080")
 
         if self.internal_port:
             self.driver = webdriver.Remote(
@@ -58,8 +63,8 @@ class IndeedJobClient(IndeedClient):
 
         while has_next_page:
             try:
-                # Gets a maximum of 150 job postings for each job
-                if page_number >= 10:
+                # Gets a maximum of 105 job postings for each job
+                if page_number >= 7:
                     break
 
                 print(f"scraping page {page_number + 1} of {job}")
@@ -84,7 +89,8 @@ class IndeedJobClient(IndeedClient):
                 time.sleep(5)
             except NoSuchElementException:
                 print(f"page {page_number} for {job} does not exist")
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
         print(f"scraping for {job} is completed")
@@ -94,6 +100,8 @@ class IndeedJobClient(IndeedClient):
         for index, posting in enumerate(job_postings_list):
             if index not in (5, 11, 17):
                 collection.append(self._scrape_one_posting(default_job, posting))
+
+        time.sleep(10)
 
     def _scrape_one_posting(self, default_job, posting):
         output = {}
