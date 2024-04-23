@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from scripts.IndeedClients import IndeedJobClient, IndeedCompanyClient
+from scripts.ProcessJobDesc import main as process_job_desc
 
 # Getting Environment Variables
 load_dotenv()
@@ -96,8 +97,7 @@ def indeed_pipeline():
     # TODO TEXT SUMMARIZATION - MINGSHAN
     @task(task_id="summarise_job_descriptions")
     def summarise_job_desc(date_scraped):
-        ### Implement the function logic here with the date_scraped argument
-        pass
+        process_job_desc()
 
     # TODO TOP SIMILAR JOBS - MINGSHAN
     @task(task_id="identify_top_similar_jobs")
