@@ -1,9 +1,13 @@
 import google.generativeai as genai
 import requests
 import chromadb
+import os
 
+from dotenv import load_dotenv
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+
+load_dotenv()
 
 # Google's Gemini for job summary
 GOOGLE_API_KEY = "AIzaSyApn-BsxgFwWHaweLwaSdNVeSLKy-xsH14"
@@ -17,7 +21,7 @@ api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{mo
 headers = {"Authorization": f"Bearer {hf_token}"}
 
 # MongoDB
-MONGODB_URI="mongodb+srv://geraldho80:WAf5hj1MNPZxrPVF@cluster0.xtz5a2z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGODB_URI = os.getenv('MONGODB_URI')
 
 def get_job_summary(job_desc):
     response = model.generate_content(
