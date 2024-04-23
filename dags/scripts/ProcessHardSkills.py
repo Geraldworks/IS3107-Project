@@ -7,15 +7,22 @@ import pandas as pd
 MONGODB_URI = os.getenv("MONGODB_URI")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+
 def getScrapedJobs(date_scraped):
     client = MongoClient(MONGODB_URI, server_api=ServerApi("1"))
     db = client["indeed"]
     collection = db["jobDescriptions"]
 
-    scraped_jobs = collection.find({'dateCreated': {'$eq': date_scraped}}, {'_id': 1, 'mainJob': 1, 'jobDescription': 1})
+    scraped_jobs = collection.find(
+        {"dateCreated": {"$eq": date_scraped}},
+        {"_id": 1, "mainJob": 1, "jobDescription": 1},
+    )
     scraped_jobs_df = pd.DataFrame(scraped_jobs)
 
+    print("retrieving data from mongodb successful")
+
     return scraped_jobs_df
+
 
 def getHardSkills(mainJob, jobDescription, model):
     prompt = f"""
@@ -33,5 +40,4 @@ def getHardSkills(mainJob, jobDescription, model):
     try:
         return response.text
     except:
-        return 'NONE'
-
+        return "NONE"
