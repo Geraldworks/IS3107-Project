@@ -9,7 +9,6 @@ from scripts.IndeedClients import IndeedJobClient, IndeedCompanyClient
 from scripts.ProcessJobDesc import main as process_job_desc
 from scripts.ProcessHardSkills import getScrapedJobs, getHardSkills
 import google.generativeai as genai
-from pymongo.server_api import ServerApi
 
 # Getting Environment Variables
 load_dotenv()
@@ -112,15 +111,22 @@ def indeed_pipeline():
     # TODO SKILLSETS SUMMARIZATION - RYU
     @task(task_id="summarise_hard_skills")
     def summarise_hard_skills(date_scraped):
-        ### Implement the function logic here with the date_scraped argument
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel("gemini-pro")
 
         scraped_jobs_df = getScrapedJobs(date_scraped)
-        scraped_jobs_df['hardSkills'] = scraped_jobs_df.apply(lambda row: getHardSkills(row['mainJob'], row['cleanedJobDescription'], model), axis=1)
-        
-        collection = db['hardSkills']
-        documents = scraped_jobs_df[['_id', 'mainJob', 'hardSkills']].to_dict(orient='records')
+        scraped_jobs_df["hardSkills"] = scraped_jobs_df.apply(
+            lambda row: getHardSkills(row["mainJob"], row["jobDescription"], model),
+            axis=1,
+        )
+
+        print("summarisation of hard skills successful")
+
+        # change the collection here too
+        collection = db["hardSkills"]
+        documents = scraped_jobs_df[["_id", "mainJob", "hardSkills"]].to_dict(
+            orient="records"
+        )
         collection.insert_many(documents)
 
     @task(task_id="complete_dag")
