@@ -7,6 +7,7 @@ from pymongo.server_api import ServerApi
 
 from datetime import datetime
 import time
+import random
 
 # Google's Gemini for job summary
 GOOGLE_API_KEY = "AIzaSyCTxdvLLlueDQmnMwg5HXXHIz8BvunoxXA"
@@ -105,7 +106,11 @@ def load_chromadb(mongodb_client):
     ids = []
     documents = []
     embeddings = []
-    for item in mongo_collection.find():
+
+    cs = mongo_collection.find()
+    all = [x for x in list(cs)]
+    loop = random.sample(all, 200)
+    for item in loop:
         ids.append(item['_id'])
         documents.append(item['summarisedJobDescription'])
         embeddings.append(get_embeddings([item['summarisedJobDescription']]))
@@ -214,8 +219,8 @@ def summarise_job_desc(date_scraped):
     job_description_list = get_job_description_list(mongodb_client, date_scraped)
     load_job_summaries(mongodb_client, job_description_list)
 
-def top_similar_jobs():
-    collection = load_chromadb(mongodb_client)
+def top_similar_jobs(date_scraped):
+    collection = load_chromadb(mongodb_client, date_scraped)
     zipped = zip_job_id_embed(collection)
     data = get_data(zipped, collection)
     load_similar_job_into_mongodb(mongodb_client, data)
