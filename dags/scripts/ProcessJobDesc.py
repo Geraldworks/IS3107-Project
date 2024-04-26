@@ -5,13 +5,16 @@ import chromadb
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 
+from dotenv import load_dotenv
 from datetime import datetime
 import time
 import random
+import os
+
+load_dotenv()
 
 # Google's Gemini for job summary
-GOOGLE_API_KEY = "AIzaSyCTxdvLLlueDQmnMwg5HXXHIz8BvunoxXA"
-genai.configure(api_key=GOOGLE_API_KEY)
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel("gemini-pro")
 
 # HuggingFace Model for generating embeddings
@@ -21,7 +24,7 @@ api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{mo
 headers = {"Authorization": f"Bearer {hf_token}"}
 
 # MongoDB
-MONGODB_URI = "mongodb+srv://geraldho80:WAf5hj1MNPZxrPVF@cluster0.xtz5a2z.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGODB_URI = os.getenv("MONGODB_URI")
 
 
 def get_job_summary(job_desc):
@@ -93,6 +96,7 @@ def get_job_description_list(mongodb_client, date_scraped):
 
     return job_description_list
 
+
 def load_embeddings(mongodb_client, date_scraped):
     db = mongodb_client["indeed"]
     sum_collection = db["summarisedDescriptions"]
@@ -109,7 +113,7 @@ def load_embeddings(mongodb_client, date_scraped):
         _id = item["_id"]
         to_append = {"_id": _id, "embedding": embedding}
         res.append(to_append)
-    
+
     print(res)
 
     for doc in res:
@@ -121,8 +125,9 @@ def load_embeddings(mongodb_client, date_scraped):
             # Replace existing document with the new one
             target_collection.replace_one({"_id": doc["_id"]}, doc)
             print(f"Replaced document with _id: {doc['_id']}")
-    
+
     print("done loading embeddings")
+
 
 def load_chromadb(mongodb_client):
     client = chromadb.Client()
@@ -157,7 +162,6 @@ def load_chromadb(mongodb_client):
         ids.append(item["_id"])
         documents.append(f"doc {count}")
         embeddings.append(item["embedding"][0])
-    
 
     # documents = [i[1] for i in job_description_list]
     # job_summaries = [i[3] for i in job_description_list]
@@ -190,8 +194,11 @@ def get_data(zipped, collection):
 
     for id, embedding in zipped:
         res = query_chromadb_for_similar_jobs(collection, embedding)
-        nearest_jobs = res["ids"][0]
-        nearest_jobs.remove(id)
+        nearest_jobs: list = res["ids"][0]
+        if id in nearest_jobs:
+            nearest_jobs.remove(id)
+        elif len(nearest_jobs) == 6:
+            nearest_jobs = nearest_jobs[1:]
         to_append = {"jobID": id, "nearest_jobs": nearest_jobs}
         data.append(to_append)
 

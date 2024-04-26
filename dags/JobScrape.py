@@ -4,6 +4,7 @@ import time
 from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
 from airflow.decorators import dag, task
+from airflow.operators.email import EmailOperator
 from datetime import datetime, timedelta
 from scripts.IndeedClients import IndeedJobClient, IndeedCompanyClient
 from scripts.ProcessJobDesc import summarise_jobs, top_similar_jobs
@@ -134,11 +135,17 @@ def indeed_pipeline():
 
     @task(task_id="complete_dag")
     def close_dag(*args, **kwargs):
-        pass
+        send_email = EmailOperator(
+            task_id="send_email",
+            to=os.getenv("EMAIL"),
+            subject="Airflow Alert",
+            html_content="<p>Your Airflow Pipeline has finished.</p>",
+        )
+        print("email sent")
 
     # data ingestion from indeed
     time_scraped = scrape_indeed_jobs(
-        ["data science", "software engineer", "data analytics"]
+        ["software engineer", "data analytics", "date science"]
     )
     time_scraped = scrape_company_stats(time_scraped)
 

@@ -1,5 +1,10 @@
 # IS3107 Project
 
+## Deployed Application
+
+View our app here: [JobMiner Insider](https://tsjgetxoyukulwgq7m8hhv.streamlit.app/)
+View the repository for the app here: [JobMiner Insider GitHub](https://github.com/zuohui48/streamlit)
+
 ## Setting up
 
 Create a python3.10 virtual environment and activate it.
