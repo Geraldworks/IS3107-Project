@@ -42,7 +42,7 @@ default_args = {
 @dag(
     dag_id="IS3107-Project",
     default_args=default_args,
-    schedule=None,
+    schedule_interval="@daily",
     catchup=False,
     tags=["IS3107-Project-Pipeline"],
 )

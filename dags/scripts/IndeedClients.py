@@ -99,7 +99,9 @@ class IndeedJobClient(IndeedClient):
     def _scrape_one_page(self, default_job, job_postings_list, collection):
         for index, posting in enumerate(job_postings_list):
             if index not in (5, 11, 17):
-                collection.append(self._scrape_one_posting(default_job, posting))
+                result = self._scrape_one_posting(default_job, posting)
+                if result:
+                    collection.append(result)
 
         time.sleep(10)
 

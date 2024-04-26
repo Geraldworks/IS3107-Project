@@ -19,7 +19,7 @@ model = genai.GenerativeModel("gemini-pro")
 
 # HuggingFace Model for generating embeddings
 model_id = "sentence-transformers/all-MiniLM-L6-v2"
-hf_token = "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"
+hf_token = os.getenv("HF_TOKEN")
 api_url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{model_id}"
 headers = {"Authorization": f"Bearer {hf_token}"}
 
