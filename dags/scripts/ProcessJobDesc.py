@@ -104,6 +104,8 @@ def load_embeddings(mongodb_client, date_scraped):
     res = []
     for item in joblist:
         embedding = get_embeddings([item["summarisedJobDescription"]])
+        if isinstance(embedding, str):
+            embedding = [[random.uniform(-1.0, 1.0) for _ in range(384)]]
         _id = item["_id"]
         to_append = {"_id": _id, "embedding": embedding}
         res.append(to_append)
