@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from scripts.IndeedClients import IndeedJobClient, IndeedCompanyClient
-from scripts.ProcessJobDesc import summarise_job_desc, top_similar_jobs
+from scripts.ProcessJobDesc import summarise_jobs, top_similar_jobs
 from scripts.ProcessHardSkills import getScrapedJobs, getHardSkills
 import google.generativeai as genai
 
@@ -100,7 +100,7 @@ def indeed_pipeline():
     # TODO TEXT SUMMARIZATION - MINGSHAN
     @task(task_id="summarise_job_descriptions")
     def summarise_job_desc(date_scraped):
-        summarise_job_desc()
+        summarise_jobs()
 
     # TODO TOP SIMILAR JOBS - MINGSHAN
     @task(task_id="identify_top_similar_jobs")
