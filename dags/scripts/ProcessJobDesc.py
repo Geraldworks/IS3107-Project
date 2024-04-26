@@ -78,23 +78,55 @@ def get_job_description_list(mongodb_client, date_scraped):
     for item in joblist:
         job_id = item["_id"]
         job_description = item["jobDescription"]
-
+        created_date = item["dateCreated"]
         time.sleep(10)
         job_summary = get_job_summary(job_description)
         count += 1
         print(count)
         # if count == 100:
         #     break
-        embedding = get_embeddings([job_summary])
-        result.append((job_id, job_description, embedding, job_summary))
+        # embedding = get_embeddings([job_summary])
+        embedding = [[0]]
+        result.append((job_id, job_description, embedding, job_summary, created_date))
 
     job_description_list = result
 
     return job_description_list
 
+def load_embeddings(mongodb_client, date_scraped):
+    db = mongodb_client["indeed"]
+    sum_collection = db["summarisedDescriptions"]
+    target_collection = db["embeddings"]
+    cs = sum_collection.find({"createdDate": {"$eq": date_scraped}})
+    joblist = [x for x in list(cs)]
+    print(joblist)
+    print("hey")
+    res = []
+    for item in joblist:
+        embedding = get_embeddings([item["summarisedJobDescription"]])
+        _id = item["_id"]
+        to_append = {"_id": _id, "embedding": embedding}
+        res.append(to_append)
+    
+    print(res)
+
+    for doc in res:
+        existing_doc = target_collection.find_one({"_id": doc["_id"]})
+        if not existing_doc:
+            target_collection.insert_one(doc)
+            print(f"Inserted document with _id: {doc['_id']}")
+        else:
+            # Replace existing document with the new one
+            target_collection.replace_one({"_id": doc["_id"]}, doc)
+            print(f"Replaced document with _id: {doc['_id']}")
+    
+    print("done loading embeddings")
 
 def load_chromadb(mongodb_client):
     client = chromadb.Client()
+
+    db = mongodb_client["indeed"]
+    emb_collection = db["embeddings"]
 
     try:
         client.delete_collection(name="jobs")
@@ -106,20 +138,24 @@ def load_chromadb(mongodb_client):
 
     collection = client.get_collection(name="jobs")
 
-    db = mongodb_client["indeed"]
-    mongo_collection = db["summarisedDescriptions"]
-
     ids = []
     documents = []
     embeddings = []
 
-    cs = mongo_collection.find()
+    cs = emb_collection.find()
     all = [x for x in list(cs)]
-    loop = random.sample(all, 200)
-    for item in loop:
+    # loop = random.sample(all, 200)
+    print(all)
+    print(len(all))
+    count = 0
+    for item in all:
+        count += 1
+        # print(count)
+        # print(item["embedding"])
         ids.append(item["_id"])
-        documents.append(item["summarisedJobDescription"])
-        embeddings.append(get_embeddings([item["summarisedJobDescription"]]))
+        documents.append(f"doc {count}")
+        embeddings.append(item["embedding"][0])
+    
 
     # documents = [i[1] for i in job_description_list]
     # job_summaries = [i[3] for i in job_description_list]
@@ -139,6 +175,7 @@ def query_chromadb_for_similar_jobs(collection, selected_job_embedding, k=6):
 
 
 def zip_job_id_embed(collection):
+    print("in zip function")
     res = collection.get(include=["embeddings"])
     zipped = list(zip(res["ids"], res["embeddings"]))
 
@@ -146,7 +183,7 @@ def zip_job_id_embed(collection):
 
 
 def get_data(zipped, collection):
-
+    print("in get data function")
     data = []
 
     for id, embedding in zipped:
@@ -174,13 +211,14 @@ def load_similar_job_into_mongodb(mongo_client, data):
 def load_job_summaries(mongo_client, job_description_list):
     ids = [str(i[0]) for i in job_description_list]
     job_summaries = [i[3] for i in job_description_list]
+    dates = [i[4] for i in job_description_list]
 
-    zipped = list(zip(ids, job_summaries))
+    zipped = list(zip(ids, job_summaries, dates))
 
     data = []
 
-    for id, summary in zipped:
-        to_append = {"_id": id, "summarisedJobDescription": summary}
+    for id, summary, d in zipped:
+        to_append = {"_id": id, "summarisedJobDescription": summary, "createdDate": d}
 
         data.append(to_append)
 
@@ -197,9 +235,9 @@ def load_job_summaries(mongo_client, job_description_list):
             collection.insert_one(doc)
             print(f"Inserted document with _id: {doc['_id']}")
         else:
-            print(
-                f"Document with _id: {doc['_id']} already exists. Skipping insertion."
-            )
+            # Replace existing document with the new one
+            collection.replace_one({"_id": doc["_id"]}, doc)
+            print(f"Replaced document with _id: {doc['_id']}")
 
     print("Data inserted successfully into summarisedDescriptions.")
 
@@ -215,7 +253,7 @@ def main(date_scraped):
     load_similar_job_into_mongodb(mongodb_client, data)
 
 
-def summarise_job_desc(date_scraped):
+def summarise_jobs(date_scraped):
     mongodb_client = connect_to_mongodb(MONGODB_URI)
     job_description_list = get_job_description_list(mongodb_client, date_scraped)
     load_job_summaries(mongodb_client, job_description_list)
@@ -223,6 +261,7 @@ def summarise_job_desc(date_scraped):
 
 def top_similar_jobs(date_scraped):
     mongodb_client = connect_to_mongodb(MONGODB_URI)
+    load_embeddings(mongodb_client, date_scraped)
     collection = load_chromadb(mongodb_client)
     zipped = zip_job_id_embed(collection)
     data = get_data(zipped, collection)
