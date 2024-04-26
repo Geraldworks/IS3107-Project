@@ -100,13 +100,15 @@ def indeed_pipeline():
     # TODO TEXT SUMMARIZATION - MINGSHAN
     @task(task_id="summarise_job_descriptions")
     def summarise_job_desc(date_scraped):
-        summarise_jobs()
+        summarise_jobs(date_scraped)
+        return date_scraped
 
     # TODO TOP SIMILAR JOBS - MINGSHAN
     @task(task_id="identify_top_similar_jobs")
-    def create_top_similar_jobs(argument_from_summarise_job_desc_func):
+    def create_top_similar_jobs(date_scraped):
         ### Implement the function logic here with the intended argument (if required)
-        top_similar_jobs()
+        top_similar_jobs(date_scraped)
+        return date_scraped
 
     # TODO SKILLSETS SUMMARIZATION - RYU
     @task(task_id="summarise_hard_skills")
@@ -128,6 +130,7 @@ def indeed_pipeline():
             orient="records"
         )
         collection.insert_many(documents)
+        return date_scraped
 
     @task(task_id="complete_dag")
     def close_dag(*args, **kwargs):

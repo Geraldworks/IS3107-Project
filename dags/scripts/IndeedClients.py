@@ -63,8 +63,8 @@ class IndeedJobClient(IndeedClient):
 
         while has_next_page:
             try:
-                # Gets a maximum of 105 job postings for each job
-                if page_number >= 7:
+                # Gets a maximum of 75 job postings for each job
+                if page_number >= 5:
                     break
 
                 print(f"scraping page {page_number + 1} of {job}")
